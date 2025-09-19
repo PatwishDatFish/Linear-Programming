@@ -1,0 +1,61 @@
+import numpy as np
+
+# Profit
+Profit = [30, 50]  # x-coefficient, y-coefficient
+
+# Conditions
+lim1 = [2, 4, 40]   # x-coefficient, y-coefficient, limit
+lim2 = [0, 1, 12]
+
+# Setup slack variables
+s1 = [lim1[0], lim1[1], 1, 0, lim1[2]]
+s2 = [lim2[0], lim2[1], 0, 1, lim2[2]]
+P = [-Profit[0], -Profit[1], 0, 0, 0]
+
+print(s1)
+print(s2)
+print(P)
+print()
+
+def LP(N, s1_init, s2_init, P_init):
+    
+    # Make local copies
+    s1 = s1_init[:]
+    s2 = s2_init[:]
+    P = P_init[:]
+
+    for j in range(N):
+        
+        # Find index of most negative y (pivot column)
+        largest_loc = np.argmin(P)
+
+        # Avoid division by zero
+        s1_factor = s1[largest_loc] if s1[largest_loc] != 0 else 1
+        s2_factor = s2[largest_loc] if s2[largest_loc] != 0 else 1
+        P_factor = abs(P[largest_loc])
+
+        # Normalize each row
+        s1 = [v / s1_factor for v in s1]
+        s2 = [v / s2_factor for v in s2]
+
+        # Iteration Step 1
+        s2 = [s2[i] - s1[i] for i in range(len(s2))]
+
+        # Iteration Step 2
+        P = [P[i] + P_factor * s1[i] for i in range(len(P))]
+
+        print(s1)
+        print(s2)
+        print(P)
+        print()
+
+    # Assign solution using last column (right-hand side)
+    x = s1[-1] if abs(s1[0] - 1) < 1e-6 else 0
+    y = s2[-1] if abs(s2[1] - 1) < 1e-6 else 0
+
+    return "Optimal Profit Found: {}x{} + {}x{} = ${}".format(
+        Profit[0], int(x), Profit[1], int(y), P[-1]
+    )
+
+
+LP(3, s1, s2, P)
