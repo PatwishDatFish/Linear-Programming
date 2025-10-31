@@ -1,0 +1,63 @@
+import highspy
+
+h = highspy.Highs()
+
+# === Decision variables ===
+x_BF_TP  = h.addVariable(lb=0, name="x_BF_TP")
+x_EAF_TP = h.addVariable(lb=0, name="x_EAF_TP")
+y_DRI_AU = h.addVariable(lb=0, name="y_DRI_AU")
+y_DRI_TP = h.addVariable(lb=0, name="y_DRI_TP")
+x_EAF_AU = h.addVariable(lb=0, name="x_EAF_AU")
+
+f_ore   = h.addVariable(lb=0, name="f_ore")
+f_HBI   = h.addVariable(lb=0, name="f_HBI")
+f_steel = h.addVariable(lb=0, name="f_steel")
+
+# Optional capacity expansions
+dK_BF_TP  = h.addVariable(lb=0, name="dK_BF_TP")
+dK_DRI_AU = h.addVariable(lb=0, name="dK_DRI_AU")
+dK_EAF_AU = h.addVariable(lb=0, name="dK_EAF_AU")
+dK_DRI_TP = h.addVariable(lb=0, name="dK_DRI_TP")
+dK_EAF_TP = h.addVariable(lb=0, name="dK_EAF_TP")
+
+# === Parameters (examples only) ===
+a_ore_BF = 1.5
+a_HBI_EAF = 1.0
+Kbar = {"BF_TP": 10, "DRI_AU": 8, "EAF_AU": 5, "DRI_TP": 6, "EAF_TP": 4}
+D = 20
+lambda_carbon = 50   # carbon price [cost per emission unit]
+
+# === Derived totals ===
+Em = (x_BF_TP*0.6 + x_EAF_TP*0.4 +
+      y_DRI_AU*0.2 + y_DRI_TP*0.3 +
+      x_EAF_AU*0.4 + f_steel*0.1)
+
+Cost = (x_BF_TP*100 + x_EAF_TP*120 +
+        y_DRI_AU*90 + y_DRI_TP*110 +
+        x_EAF_AU*130 +
+        f_ore*5 + f_HBI*3 + f_steel*8 +
+        200*dK_BF_TP + 180*dK_EAF_AU)
+
+# === Objective (A): cost + λ×emissions ===
+h.minimize(Cost + lambda_carbon * Em)
+
+# === Constraints ===
+h.addConstr(x_BF_TP + x_EAF_TP + f_steel == D, name="demand")
+h.addConstr(f_ore == a_ore_BF * x_BF_TP, name="ore_balance")
+h.addConstr(y_DRI_AU + y_DRI_TP == a_HBI_EAF * (x_EAF_AU + x_EAF_TP),
+            name="dri_balance")
+h.addConstr(x_EAF_TP <= y_DRI_TP + f_HBI)
+h.addConstr(f_HBI <= y_DRI_AU)
+h.addConstr(f_steel <= x_EAF_AU)
+h.addConstr(x_BF_TP <= Kbar["BF_TP"] + dK_BF_TP)
+h.addConstr(y_DRI_AU <= Kbar["DRI_AU"] + dK_DRI_AU)
+h.addConstr(x_EAF_AU <= Kbar["EAF_AU"] + dK_EAF_AU)
+
+# === Solve ===
+h.run()
+
+# === Results ===
+sol = h.getSolution()
+for name, var in zip(h.getModel().variables, sol.col_value):
+    print(f"{name.name:12s} = {var:8.3f}")
+print("\nObjective (Cost + λ·Em):", sol.objective_value)
